@@ -3,7 +3,7 @@
 
 - Reads PNG files from `src/` (alphabetical)
 - Places images into an A4 PDF in a grid
-- Each image is fitted into 63.5mm x 88mm (preserving aspect ratio) and centered
+- Each image is fitted into 63mm x 88mm (preserving aspect ratio) and centered
 - Spacing and margins default to 10 mm
 - Output saved to project root as <unix_milliseconds>.pdf
 
@@ -29,6 +29,10 @@ DPI = 300  # target print DPI (use high-res source and downscale)
 
 if NO_SPACING:
     SPACING_MM = 0.0
+
+# When True, center the whole grid vertically on the page (in addition to
+# the existing horizontal centering). Can be disabled for legacy behavior.
+CENTER_VERTICAL = True
 
 SRC_DIR = os.path.join(os.path.dirname(__file__), "src")
 OUT_DIR = os.path.dirname(__file__)  # save PDF in project root
@@ -107,9 +111,20 @@ def main():
     out_path = os.path.join(OUT_DIR, filename)
     c = canvas.Canvas(out_path, pagesize=A4)
 
-    start_x = (PAGE_W_PT - (CARD_W_PT * cols) - (SPACING_PT * (cols - 1))) / 2  # leftmost card x (reportlab origin bottom-left)
-    #start_y = PAGE_H_PT - MARGIN_PT - CARD_H_PT  # top-left card y (reportlab origin bottom-left)
-    start_y = PAGE_H_PT - MARGIN_PT * 2 - CARD_H_PT  # top-left card y (reportlab origin bottom-left)
+    # Center the grid horizontally within the page margins
+    usable_width_pt = PAGE_W_PT - 2 * MARGIN_PT
+    grid_width = cols * CARD_W_PT + (cols - 1) * SPACING_PT
+    start_x = MARGIN_PT + (usable_width_pt - grid_width) / 2  # leftmost card x (reportlab origin bottom-left)
+
+    # Calculate start_y (top-left card y). If CENTER_VERTICAL is enabled,
+    # compute the total grid height and vertically center that block on the
+    # page. Otherwise keep the legacy top-margin-based placement.
+    if CENTER_VERTICAL:
+        grid_height = rows * CARD_H_PT + (rows - 1) * SPACING_PT
+        start_y = (PAGE_H_PT + grid_height) / 2 - CARD_H_PT
+    else:
+        # legacy: place starting near the top with margins
+        start_y = PAGE_H_PT - MARGIN_PT * 2 - CARD_H_PT  # top-left card y (reportlab origin bottom-left)
 
     idx = 0
     for i, img_path in enumerate(imgs):
