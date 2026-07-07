@@ -10,7 +10,7 @@
 Dependencies: Pillow, reportlab
 """
 import os
-import time
+from datetime import datetime
 import math
 from io import BytesIO
 from PIL import Image, ImageOps
@@ -18,12 +18,17 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.utils import ImageReader
 
+NO_SPACING = True  # set to True to disable spacing between cards (for cutting)
+
 # Config (mm / DPI)
-CARD_W_MM = 63.5
+CARD_W_MM = 63
 CARD_H_MM = 88.0
 MARGIN_MM = 4.0
 SPACING_MM = 5.0
 DPI = 300  # target print DPI (use high-res source and downscale)
+
+if NO_SPACING:
+    SPACING_MM = 0.0
 
 SRC_DIR = os.path.join(os.path.dirname(__file__), "src")
 OUT_DIR = os.path.dirname(__file__)  # save PDF in project root
@@ -97,12 +102,14 @@ def main():
     cols, rows = compute_grid()
     per_page = cols * rows
 
-    ts = str(int(time.time() * 1000))
-    out_path = os.path.join(OUT_DIR, f"{ts}.pdf")
+    ts = datetime.now().strftime("%Y_%m_%d_%H%M%S")
+    filename = f"{ts}.pdf"
+    out_path = os.path.join(OUT_DIR, filename)
     c = canvas.Canvas(out_path, pagesize=A4)
 
-    start_x = MARGIN_PT
-    start_y = PAGE_H_PT - MARGIN_PT - CARD_H_PT  # top-left card y (reportlab origin bottom-left)
+    start_x = (PAGE_W_PT - (CARD_W_PT * cols) - (SPACING_PT * (cols - 1))) / 2  # leftmost card x (reportlab origin bottom-left)
+    #start_y = PAGE_H_PT - MARGIN_PT - CARD_H_PT  # top-left card y (reportlab origin bottom-left)
+    start_y = PAGE_H_PT - MARGIN_PT * 2 - CARD_H_PT  # top-left card y (reportlab origin bottom-left)
 
     idx = 0
     for i, img_path in enumerate(imgs):
@@ -124,7 +131,7 @@ def main():
             c.showPage()
 
     c.save()
-    print(out_path)
+    print("Pronto: " + filename)
 
 if __name__ == "__main__":
     main()
